@@ -1,0 +1,13 @@
+central:
+  build: ./central
+  ports:
+    - "8701"
+executor:
+  build: ./executor
+  links:
+    - central
+  ports:
+    - "3000"
+    - "3001"
+    - "3002"
+    - "3003"
