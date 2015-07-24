@@ -3,6 +3,6 @@ strong-mesh-demo
 
 Scripts for setting up a demo strong-mesh environment.
 
-### Usage
+### Docker Compose
 
-    docker-compose up
+    cd docker && docker-compose up
