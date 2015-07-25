@@ -1,0 +1,110 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+$central_ip = "10.42.42.2"
+$executor_ips = ["10.42.42.3", "10.42.42.4"]
+
+$install_central = <<EOF
+  npm install -g --build-from-source=sqlite3 strong-central
+  sudo -n sl-central-install
+  sudo -n start strong-central
+EOF
+
+$install_executor = <<EOF
+  npm install -g --build-from-source=sqlite3 strong-mesh-models strong-executor
+  export CENTRAL=$1
+  echo "Registering with $CENTRAL"
+  export CREATION=$(/usr/local/bin/sl-meshadm -C http://$CENTRAL/ exec-create)
+  # strip the longest prefix matching "* " (which is "... token: "), leaving just the token
+  export TOKEN=${CREATION##* }
+  # exec so we're up and running
+  sudo -n sl-executor-install -C http://$TOKEN@$CENTRAL/
+  sudo start strong-executor
+EOF
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure(2) do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "strongloop/node-trusty"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Define a central VM
+  config.vm.define "central" do |central|
+    central.vm.provision "shell", privileged: false, inline: $install_central
+    central.vm.network "private_network", ip: $central_ip
+    central.vm.hostname "strong-central"
+    central.vm.post_up_message "Mesh central server running at: http://#{central_ip}:8701"
+  end
+
+  # Define executor VMs
+  $executor_ips.each_with_index do |ip, id|
+    config.vm.define "executor-#{id}" do |executor|
+      executor.vm.provision "shell", privileged: false, inline: $install_executor, args: ["#{$central_ip}:8701"]
+      executor.vm.network "private_network", ip: ip
+      executor.vm.hostname "executor-#{id}"
+      executor.vm.post_up_message "Apps deployed to this executor will start at http://#{ip}:3001"
+    end
+  end
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  # config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+  #   vb.gui = true
+  #
+  #   # Customize the amount of memory on the VM:
+  #   vb.memory = "1024"
+  # end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Define a Vagrant Push strategy for pushing to Atlas. Other push strategies
+  # such as FTP and Heroku are also available. See the documentation at
+  # https://docs.vagrantup.com/v2/push/atlas.html for more information.
+  # config.push.define "atlas" do |push|
+  #   push.app = "YOUR_ATLAS_USERNAME/YOUR_APPLICATION_NAME"
+  # end
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   sudo apt-get update
+  #   sudo apt-get install -y apache2
+  # SHELL
+end
