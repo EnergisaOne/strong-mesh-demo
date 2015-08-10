@@ -7,7 +7,7 @@ $executor_ips = (3...executor_count + 3).map { |i| "10.42.42.#{i}" }
 
 $install_central = <<EOF
   npm install -g --build-from-source=sqlite3 strong-central
-  sudo -n sl-central-install
+  sudo -n sl-central-install --license=#{ENV['STRONGLOOP_LICENSE']}
   sudo -n start strong-central
 EOF
 
